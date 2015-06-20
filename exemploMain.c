@@ -80,6 +80,7 @@ int main() {
                     if(existeArquivo(insertTable)) {
                         struct fs_objects object;
                         tp_table *schema;
+                        table *tab = iniciaTabela(newTokens[2]);
                         abreTabela(newTokens[2], &object, &schema);
                         if(object.qtdCampos == pos2-5) {
                             column *columns = NULL;
@@ -91,7 +92,7 @@ int main() {
                                         success = 0;
                                     }
                                 }
-                                columns = insereValor(columns, schema[j].nome, newTokens[i]);
+                                columns = insereValor(tab,columns, schema[j].nome, newTokens[i]);
                             }
                             if(success) {
                                 finalizaInsert(newTokens[2], columns);
