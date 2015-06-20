@@ -1,124 +1,161 @@
 #include <stdlib.h>
 #include <string.h>
 #include "buffend.h"
-
-int main(){
-    int nrTabelas = 3;
-    int nTabela[nrTabelas];
-    table  *tab[nrTabelas]; 
-    column *colunas;
-    int object, schema;
-    
-    object      = existeArquivo("fs_object.dat");
-    schema      = existeArquivo("fs_schema.dat");
-    nTabela[0]  = existeArquivo("Aluno.dat");
-    nTabela[1]  = existeArquivo("Inst.dat");
-    nTabela[2]  = existeArquivo("Inscri.dat");
-     if(!object || !schema){
-    
-        if(!nTabela[0]){                                                                    //Se ainda não existe a Aluno, a mesma é criada
-            tab[0] = iniciaTabela("Aluno");                                                 //Cria a tabela 
-            tab[0] = adicionaCampo(tab[0], "CPF"     , 'I', (sizeof(int))   ,PK,"","");     //Cria os atributos
-            tab[0] = adicionaCampo(tab[0], "Nome"    , 'S', 20              ,NPK,"","");        
-            tab[0] = adicionaCampo(tab[0], "Endereco", 'S', 20              ,NPK,"","");
-            tab[0] = adicionaCampo(tab[0], "Peso"    , 'D', (sizeof(double)),NPK,"","");
-            finalizaTabela(tab[0]);
-         }
-         if(!nTabela[1]){   
-            tab[1] = iniciaTabela("Inst"); 
-            tab[1] = adicionaCampo(tab[1], "CodInst"  , 'I', (sizeof(int))   ,PK , "","");
-            tab[1] = adicionaCampo(tab[1], "Nome"     , 'S', 20              ,NPK, "","");
-            tab[1] = adicionaCampo(tab[1], "Endereco" , 'S', 20              ,NPK, "","");
-            tab[1] = adicionaCampo(tab[1], "Reitor"   , 'S', 10              ,NPK, "","");
-            finalizaTabela(tab[1]);
+#define DELIMITER " (),;"
+int main() {
+    int exitFlag = 0;
+    int dbConnected = 0;
+    char currentDatabase[50] = "";
+    char inputCommand[128];
+    char allTokens[128][128];
+    char newTokens[128][128];
+    char tokenBuffer[128];
+    char SQLCommands[][50] = {
+        "INSERT",
+        "INTO",
+        "VALUES",
+        "SELECT",
+        "FROM"
+    };
+    while(exitFlag == 0) {
+        int inQuotes = 0;
+        int pos = 0;
+        tokenBuffer[0] = '\0';
+        printf("%s=# ",currentDatabase);
+        if (fgets(inputCommand, sizeof inputCommand, stdin)) {
+            char *token;
+            token = strtok(inputCommand,DELIMITER);
+            while(token != NULL) {
+                sprintf(allTokens[pos],"%s",token);
+                pos++;
+                token = strtok(NULL,DELIMITER);
+            }           
         }
-        if(!nTabela[2]){ 
-            tab[2] = iniciaTabela("Inscri"); 
-            tab[2] = adicionaCampo(tab[2], "CodMat"     , 'I', (sizeof(int))  ,PK, "","");
-            tab[2] = adicionaCampo(tab[2], "CPF"        , 'I', (sizeof(int))  ,FK, "Aluno","CPF");
-            tab[2] = adicionaCampo(tab[2], "CodInst"    , 'I', (sizeof(int))  ,FK , "Inst","CodInst");
-            tab[2] = adicionaCampo(tab[2], "Curso"   , 'S',  20  ,NPK, "","");
-            finalizaTabela(tab[2]);
+        int i, pos2 = 0, founded;
+        for(i = 0; i < pos; i++, founded = 0) {
+            if(allTokens[i][0] == '\'') {
+                inQuotes = 1;
+            }
+            while(inQuotes == 1) {
+                founded ++;
+                if(tokenBuffer[0] == '\0') {
+                    sprintf(tokenBuffer,"%s",&allTokens[i][1]);
+                }
+                else {
+                    sprintf(tokenBuffer,"%s %s",tokenBuffer,allTokens[i]);
+                }
+                if(tokenBuffer[strlen(tokenBuffer)-1] == '\'') {
+                    tokenBuffer[strlen(tokenBuffer)-1] = '\0';
+                    inQuotes = 0;
+                    sprintf(newTokens[pos2], "%s",tokenBuffer);
+                    pos2++;
+                    tokenBuffer[0] = '\0';
+                    if(founded > 0)
+                        i--;
+                }
+                i++;
+            }
+            sprintf(newTokens[pos2], "%s", allTokens[i]);
+            pos2++;
         }
-       
-         
-         //Inserção de tuplas na tabela1   
-        colunas = NULL;     
-        colunas = insereValor(tab[0],colunas, "CPF", "123456");
-        colunas = insereValor(tab[0],colunas, "Nome", "Rogerio");
-        colunas = insereValor(tab[0],colunas, "Endereco", "Rua Marechal");
-        colunas = insereValor(tab[0],colunas, "Peso", "81.4");
-        finalizaInsert("Aluno", colunas); 
-        
-        colunas = NULL;     
-        colunas = insereValor(tab[0],colunas, "CPF", "654321");
-        colunas = insereValor(tab[0],colunas, "Nome", "Ricardo");
-        colunas = insereValor(tab[0],colunas, "Endereco", "RuaClevela");
-        colunas = insereValor(tab[0],colunas, "Peso", "88.9");
-        finalizaInsert("Aluno", colunas); 
-
-        colunas = NULL;     
-        colunas = insereValor(tab[0],colunas, "CPF", "1234567");
-        colunas = insereValor(tab[0],colunas, "Nome", "Natan");
-        colunas = insereValor(tab[0],colunas, "Endereco", "RuaDelmi");
-        colunas = insereValor(tab[0],colunas, "Peso", "58.9");
-        finalizaInsert("Aluno", colunas); 
+        int offset = 0;
+        for(i = 0; i < pos2; i++) {
+            if(newTokens[i][strlen(newTokens[i])-1] == '\'') {
+                i++;
+                offset++;
+                sprintf(newTokens[i-offset],"%s",newTokens[i]);
+            }
+        }
+        pos2-= offset;
+        if(newTokens[pos2-1][strlen(newTokens[pos2-1])-1] == 10) {
+            newTokens[pos2-1][strlen(newTokens[pos2-1])-1] = '\0';
+        }
+        //INSERT
+        if(strcasecmp(newTokens[0],SQLCommands[0]) == 0&& strcasecmp(newTokens[1],SQLCommands[1]) == 0) {
+            if(dbConnected) {
+                char insertTable[50];
+                sprintf(insertTable,"%s", newTokens[2]); 
+                if(strcasecmp(newTokens[3],SQLCommands[2]) == 0) {
+                    sprintf(insertTable,"%s.dat",insertTable);
+                    if(existeArquivo(insertTable)) {
+                        struct fs_objects object;
+                        tp_table *schema;
+                        abreTabela(newTokens[2], &object, &schema);
+                        if(object.qtdCampos == pos2-5) {
+                            column *columns = NULL;
+                            int j, success = 1;
+                            for(i = 4, j = 0; i < pos2-1; i++, j++) {
+                                if(schema[j].tipo == 'S') {
+                                    if(strlen(newTokens[i]) >= schema[j].tam) {
+                                        printf("ERROR: Field length out of bounds on field '%s'\n", schema[j].nome);
+                                        success = 0;
+                                    }
+                                }
+                                columns = insereValor(columns, schema[j].nome, newTokens[i]);
+                            }
+                            if(success) {
+                                finalizaInsert(newTokens[2], columns);
+                                printf("INSERT 1\n");
+                            }
+                        }
+                        else {
+                            printf("ERROR: Field count does not match, expected reading %d fields but found %d fields!\nABORTING...\n",object.qtdCampos,pos2-5);
+                            for(i = 4; i < pos2-1; i++) {
+                                printf("VALOR = %s\n",newTokens[i]);
+                            }
+                        }
+                    }
+                    else {
+                        printf("ERROR: Table %s not exists!\nABORTING...\n",newTokens[2]);
+                    }
+                    
+                }
+                else {
+                    printf("ERROR: Expecting token 'VALUES', but found %s\nABORTING...\n", newTokens[3]);
+                }
+            }
+            else {
+                printf("ERROR: Not Connected to any database\nTIP: Use \\C to connect!\n");
+            }
+        }
+        //\c (Connect)
+        else if(strcmp(newTokens[0],"\\c") == 0) {
+            char tryBD[50];
+            sprintf(tryBD,"fs_schema_%s.dat",newTokens[1]);
+            if(fopen(tryBD,"r") != NULL) {
+                printf("Connected to database %s\n", newTokens[1]);
+                sprintf(currentDatabase,"%s",newTokens[1]);
+                dbConnected = 1;
+            }
+            else {
+                printf("ERROR: Database %s not exists!\n",newTokens[1]);
+            }
+        }
+        //\q (Sair)
+        else if(strcmp(newTokens[0],"\\q") == 0) {
+            printf("LEAVING...\n");
+            exitFlag = 1;
+        }
+        //SELECT * FROM Tabela
+        else if(strcasecmp(newTokens[0],SQLCommands[3]) == 0) {
+            if(dbConnected) {
+                if(strcasecmp(newTokens[2],SQLCommands[4]) == 0) {
+                    imprime(newTokens[3]);
+                }
+                else {
+                    printf("ERROR: Expecting token 'FROM', but found %s\nABORTING...\n", newTokens[2]);
+                }
+            }
+            else {
+                printf("ERROR: Not Connected to any database\nTIP: Use \\C to connect!\n");
+            }
             
-        
-        //Inserção de tuplas na tabela2 
-        colunas = NULL;
-        colunas = insereValor(tab[1],colunas, "CodInst", "111");
-        colunas = insereValor(tab[1],colunas, "Nome", "UFFS");
-        colunas = insereValor(tab[1],colunas, "Endereco", "RuadeTerra");
-        colunas = insereValor(tab[1],colunas, "Reitor", "MandaChuva");
-        finalizaInsert("Inst", colunas);
-        
-        colunas = NULL;
-        colunas = insereValor(tab[1],colunas, "CodInst", "222");
-        colunas = insereValor(tab[1],colunas, "Nome", "CEFET");
-        colunas = insereValor(tab[1],colunas, "Endereco", "RuadePedra");
-        colunas = insereValor(tab[1],colunas, "Reitor", "MandaVento");
-        finalizaInsert("Inst", colunas);
+        }
+        else {
+            printf("ERROR: Token '%s', is not recognized\nABORTING...\n",newTokens[0]);
+        }
 
-        colunas = NULL;
-        colunas = insereValor(tab[1],colunas, "CodInst", "333");
-        colunas = insereValor(tab[1],colunas, "Nome", "UNOESC");
-        colunas = insereValor(tab[1],colunas, "Endereco", "RuadeAsfal");
-        colunas = insereValor(tab[1],colunas, "Reitor", "MandaAgua");
-        finalizaInsert("Inst", colunas);
-        
-        
-        
-        //Inserção de tupla na tabela3
-        colunas = NULL;
-        colunas = insereValor(tab[2],colunas, "CodMat", "1401");
-        colunas = insereValor(tab[2],colunas, "CPF", "123456");
-        colunas = insereValor(tab[2],colunas, "CodInst", "333");
-        colunas = insereValor(tab[2],colunas, "Curso", "CC");
-        finalizaInsert("Inscri", colunas);
-        
-        colunas = NULL;
-        colunas = insereValor(tab[2],colunas, "CodMat", "1402");
-        colunas = insereValor(tab[2],colunas, "CPF", "654321");
-        colunas = insereValor(tab[2],colunas, "CodInst", "222");
-        colunas = insereValor(tab[2],colunas, "Curso", "CC");
-        finalizaInsert("Inscri", colunas);
-        
-        colunas = NULL;
-        colunas = insereValor(tab[2],colunas, "CodMat", "1403");
-        colunas = insereValor(tab[2],colunas, "CPF", "1234567");
-        colunas = insereValor(tab[2],colunas, "CodInst", "111");
-        colunas = insereValor(tab[2],colunas, "Curso", "ADM");
-        finalizaInsert("Inscri", colunas);
     }
-    
-    
-    imprime("Aluno");        //Imprime os atributos da tabela "Aluno"
-    imprime("Inst");
-    //excluirTabela("Inst");   //Exclui os dados da tabela do dicionario e remove-a do disco
-    imprime("Inscri");
-    //excluirTabela("Inscri");
-    
-    
     return 0;
 }
+//insert into Aluno VALUES(3391,'raphael','Santos',33.7);

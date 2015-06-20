@@ -298,3 +298,20 @@ Da compilação:
 	$ gcc *.c -o prog -Wall
 	$ ./prog
 
+
+Dos comandos da Interface 1: //By raphaelmacsabpf
+Comando Insert: //Inserir em uma tabela
+	INSERT INTO {NOME_DA_TABELA} VALUES([{ATRIBUTO1},{ATRIBUTO2},{ATRIBUTO3},...,{ATRIBUTON}]);
+	Exemplo:
+		INSERT INTO Aluno VALUES(1112,'Raphael','Rua 27',91.3);
+Comando \c: //Se conectar a um banco
+	\c {NOME_DO_BANCO}
+	Exemplo:
+		\c std
+Comando \q //Sair do programa
+	Exemplo:
+		\q
+Comando SELECT
+	SELECT * FROM {NOME_DA_TABELA};
+	Exemplo:
+		SELECT * FROM Aluno;
