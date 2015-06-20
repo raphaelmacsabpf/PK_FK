@@ -573,107 +573,26 @@ char retornaTamanhoTipoDoCampo(char *nomeCampo, table  *tab) {
 
 //-----------------------------------------
 // INSERE NA TABELA
-column *insereValor(table  *tab, column *c, char *nomeCampo, char *valorCampo){
+column *insereValor(table *tab, column *c, char *nomeCampo, char *valorCampo){
     
     column *aux;
     if(c == NULL){ // Se o valor a ser inserido é o primeiro, adiciona primeiro campo.
     
-        column *e = (column *)malloc(sizeof(column));
-
-        if (e == NULL)
-        {
-            return ERRO_DE_ALOCACAO;
-        }
-
-        int tam = retornaTamanhoValorCampo(nomeCampo, tab);
-        char tipo = retornaTamanhoTipoDoCampo(nomeCampo,tab); 
-
-        int nTam = strlen(valorCampo);
-
-        if (tipo == 'S')
-        {
-            nTam = tam;
-        }
-
-        e->valorCampo = (char *)malloc(sizeof(char) * (nTam+1));
-        
-        if (e->valorCampo == NULL)
-        {
-            return ERRO_DE_ALOCACAO;
-        }
-
-        int n = strlen(nomeCampo)+1;
-
-        /**
-         * Verifica se o nome ultrapassa o limite, se sim trunca 
-         */
-        if (n > TAMANHO_NOME_CAMPO)
-        {
-           n = TAMANHO_NOME_CAMPO;
-        }
-
-        strncpy(e->nomeCampo, nomeCampo,n); 
-
-        n = strlen(valorCampo) + 1;
-        
-        if (n > tam && tipo == 'S')
-        {
-            n = tam;
-        }
-
-        strncpy(e->valorCampo, valorCampo,n);
-
+        column *e = (column *)malloc(sizeof(column)*1);
+        e->valorCampo = (char *)malloc(sizeof(char) * (sizeof(valorCampo)));
+        strcpy(e->nomeCampo, nomeCampo); 
+        strcpy(e->valorCampo, valorCampo);
         e->next = NULL;
         c = e;
         return c;
     } else {
         for(aux = c; aux != NULL; aux = aux->next) { // Anda até o final da lista de valores a serem inseridos e adiciona um novo valor.
             if(aux->next == NULL){
-
-                column *e = (column *)malloc(sizeof(column));
-
-                if (e == NULL)
-                {
-                    return ERRO_DE_ALOCACAO;
-                }
-                int tam = retornaTamanhoValorCampo(nomeCampo, tab);
-                char tipo = retornaTamanhoTipoDoCampo(nomeCampo,tab); 
-
-                int nTam = strlen(valorCampo);
-
-                if (tipo == 'S')
-                {
-                    nTam = tam;
-                }
-
-                e->valorCampo = (char *) malloc (sizeof(char) * (nTam+1));
-
-                if (e->valorCampo == NULL)
-                {
-                    return ERRO_DE_ALOCACAO;
-                }
-
+                column *e = (column *)malloc(sizeof(column)*1);
+                e->valorCampo = (char *)malloc(sizeof(char) * (sizeof(valorCampo)));
                 e->next = NULL;
-
-                int n = strlen(nomeCampo)+1;
-
-                /**
-                 * Verifica se o nome do campo ultrapassa o limite, se sim trunca 
-                 */
-                if (n > TAMANHO_NOME_CAMPO)
-                {
-                   n = TAMANHO_NOME_CAMPO;
-                }
-
-                strncpy(e->nomeCampo, nomeCampo,n);
-                
-                 n = strlen(valorCampo) + 1;
-        
-                if (n > tam && tipo == 'S')
-                {
-                    n = tam;
-                }
-                strncpy(e->valorCampo, valorCampo,n);
+                strcpy(e->nomeCampo, nomeCampo);
+                strcpy(e->valorCampo, valorCampo);
                 aux->next = e;
                 return c;
             }
