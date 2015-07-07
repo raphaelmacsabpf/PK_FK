@@ -9,6 +9,9 @@
 #define TAMANHO_NOME_TABELA 20 	// Tamanho do nome da tabela.
 #define TAMANHO_NOME_ARQUIVO 20 // Tamanho do nome do arquivo.
 
+typedef struct usql {
+    char currentDatabase[50];
+}usql;
 
 struct fs_objects { // Estrutura usada para carregar fs_objects.dat
 	char nome[TAMANHO_NOME_TABELA];		//  Nome da tabela.
@@ -74,7 +77,7 @@ tp_buffer * initbuffer();
 /************************************************************************************************
  ************************************************************************************************/
 
-struct fs_objects leObjeto(char *nTabela);
+struct fs_objects leObjeto(char *nTabela, usql usql);
 /*
 	Esta função busca, no arquivo fs_object.dat, pelo nome da tabela retornando as informações que
     estão no dicionário em uma estrutura fs_objects. Caso o nome da tabela não exista, o programa 
@@ -86,7 +89,7 @@ struct fs_objects leObjeto(char *nTabela);
 /************************************************************************************************
  ************************************************************************************************/
 
-tp_table *leSchema (struct fs_objects objeto);
+tp_table *leSchema (struct fs_objects objeto, usql usql);
 /*
     Esta função busca, no arquivo fs_schema.dat, pelas informações do objeto, carregando o esquema 
     da tabela que é retornadado em tp_table.
@@ -124,7 +127,7 @@ int printbufferpoll(tp_buffer *buffpoll, tp_table *s,struct fs_objects objeto, i
 /************************************************************************************************
  ************************************************************************************************/
 
-int colocaTuplaBuffer(tp_buffer *buffer, int from, tp_table *campos, struct fs_objects objeto);
+int colocaTuplaBuffer(tp_buffer *buffer, int from, tp_table *campos, struct fs_objects objeto, usql usql);
 /*
     Esta função insere uma tupla em uma página do buffer em que haja espaço suficiente. 
     Retorna ERRO_BUFFER_CHEIO caso não haja espeço para a tupla
@@ -139,7 +142,7 @@ int colocaTuplaBuffer(tp_buffer *buffer, int from, tp_table *campos, struct fs_o
 /************************************************************************************************
  ************************************************************************************************/
 
-int quantidadeTabelas();
+int quantidadeTabelas(usql usql);
 /*
     Esta função conta quantas tabelas já estão inseridas dentro do dicionario, para poder colocar 
     um código válido para a próxima tabela. Retorna a quantidade exata de tabelas.
@@ -148,7 +151,7 @@ int quantidadeTabelas();
 /************************************************************************************************
  ************************************************************************************************/
 
-int verificaNomeTabela(char *nomeTabela);
+int verificaNomeTabela(char *nomeTabela, usql usql);
 /*
     Esta função verifica se um nome de tabela já está inserido no dicionario. 
     Retorna:
@@ -160,7 +163,7 @@ int verificaNomeTabela(char *nomeTabela);
 /************************************************************************************************
  ************************************************************************************************/
 
-table *iniciaTabela(char *nomeTabela);
+table *iniciaTabela(char *nomeTabela, usql usql);
 /*
     Esta função inicia um estrutura do tipo table, como nome de tabela passado. 
     Retorna:
@@ -186,7 +189,7 @@ table *adicionaCampo(table *t,char *nomeCampo, char tipoCampo, int tamanhoCampo,
 /************************************************************************************************
  ************************************************************************************************/
 
-int finalizaTabela(table *t);
+int finalizaTabela(table *t, usql usql);
 /*
     Esta função finaliza a tabela preveamente estrutura pelas funcoes iniciaTabela() e adicionaCampo(). 
     Escreve nos arquivos fs_object.dat e fs_schema.dat, a estrutura passada.
@@ -200,7 +203,7 @@ int finalizaTabela(table *t);
 /************************************************************************************************
  ************************************************************************************************/
 
-column *insereValor(table  *tab, column *c, char *nomeCampo, char *valorCampo);
+column *insereValor(column *c, char *nomeCampo, char *valorCampo);
 /*
     Esta função inicia e aloca dinâmicamente uma lista de valores que vão ser inseridos em uma tabela.
     Retorna: 
@@ -214,7 +217,7 @@ column *insereValor(table  *tab, column *c, char *nomeCampo, char *valorCampo);
 /************************************************************************************************
  ************************************************************************************************/
 
-int finalizaInsert(char *nome, column *c);
+int finalizaInsert(char *nome, column *c, usql usql);
 /*
     Esta função finaliza a inserção de valores em uma tabela. Assume que o usuário entrou com todos
     os campos de uma tupla completa.
@@ -262,14 +265,14 @@ column * excluirTuplaBuffer(tp_buffer *buffer, tp_table *campos, struct fs_objec
 /************************************************************************************************
 /  Natan J. Mai, Ricardo Zanuzzo e Rogério Torchelsen                                          */
 
-void imprime(char nomeTabela[] );
+void imprime(char nomeTabela[], usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Utilizada para impressão de tabelas.
     Parametros: Nome da tabela (char).    
     Retorno:    void.
    ---------------------------------------------------------------------------------------------*/
 
-int excluirTabela(char *nomeTabela);
+int excluirTabela(char *nomeTabela, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Função para exclusão de tabelas.
     Parametros: Nome da tabela (char).    
@@ -287,7 +290,7 @@ int existeArquivo(const char* filename);
     Retorno:    INT 1 (existe) , 0 (não existe).
    ---------------------------------------------------------------------------------------------*/
 
-int existeAtributo(char *nomeTabela, column *c);
+int existeAtributo(char *nomeTabela, column *c, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Verifica a existência do atributo antes de adicionar na tabela
     Parametros: Nome da tabela, coluna C.    
@@ -304,14 +307,14 @@ int TrocaArquivosObj(char *nomeTabela, char *linha);
     Retorno:    INT(1 - Está contido, 0 - Não está)                
    ---------------------------------------------------------------------------------------------*/
 
-tp_table *procuraAtributoFK(struct fs_objects objeto);
+tp_table *procuraAtributoFK(struct fs_objects objeto, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Retorna vetor de esquemas com todos os atributos chaves (PK, FK e NPK)
     Parametros: Objeto da tabela.
     Retorno:    Vetor de esquemas vetEsqm
    ---------------------------------------------------------------------------------------------*/
 
-int procuraObjectArquivo(char *nomeTabela);
+int procuraObjectArquivo(char *nomeTabela, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Copia todas as informações menos a tabela com nome NomeTabela, que será removida.
     Parametros: Nome da tabela que será removida do object.dat.
@@ -321,7 +324,7 @@ int procuraObjectArquivo(char *nomeTabela);
    ---------------------------------------------------------------------------------------------*/
 
 //procuraSchemaArquivo:
-int procuraSchemaArquivo(struct fs_objects objeto);
+int procuraSchemaArquivo(struct fs_objects objeto, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Copia todas as informações menos a tabela do objeto, que será removida.
     Parametros: Objeto que será removido do schema.
@@ -330,7 +333,7 @@ int procuraSchemaArquivo(struct fs_objects objeto);
                 ERRO_REMOVER_ARQUIVO_SCHEMA
    ---------------------------------------------------------------------------------------------*/
 
-int verificaChaveFK(char *nomeTabela, column *c, char *nomeCampo, char *valorCampo, char *tabelaApt, char *attApt);
+int verificaChaveFK(char *nomeTabela, column *c, char *nomeCampo, char *valorCampo, char *tabelaApt, char *attApt, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Gera as verificações em relação a chave FK.
     Parametros: Nome da Tabela, Coluna C, Nome do Campo, Valor do Campo, Tabela Apontada e Atributo Apontado.
@@ -340,7 +343,7 @@ int verificaChaveFK(char *nomeTabela, column *c, char *nomeCampo, char *valorCam
                 ERRO_CHAVE_ESTRANGEIRA
    ---------------------------------------------------------------------------------------------*/
 
-int verificaChavePK(char *nomeTabela, column *c, char *nomeCampo, char *valorCampo);
+int verificaChavePK(char *nomeTabela, column *c, char *nomeCampo, char *valorCampo, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Gera as verificações em relação a chave pK.
     Parametros: Nome da Tabela, Coluna C, Nome do Campo, Valor do Campo
@@ -350,7 +353,7 @@ int verificaChavePK(char *nomeTabela, column *c, char *nomeCampo, char *valorCam
                 ERRO_CHAVE_PRIMARIA
    ---------------------------------------------------------------------------------------------*/
 
-int iniciaAtributos(struct fs_objects *objeto, tp_table **tabela, tp_buffer **bufferpoll, char *nomeT);
+int iniciaAtributos(struct fs_objects *objeto, tp_table **tabela, tp_buffer **bufferpoll, char *nomeT, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Inicializa os atributos necessários para a verificação de FK e PK.
     Parametros: Objeto da tabela, Tabela, Buffer e nome da tabela.
@@ -359,13 +362,24 @@ int iniciaAtributos(struct fs_objects *objeto, tp_table **tabela, tp_buffer **bu
                 ERRO_DE_PARAMETRO,
    ---------------------------------------------------------------------------------------------*/
 
-//função que 
-tp_table *abreTabela(char *nomeTabela, struct fs_objects *objeto, tp_table **tabela);
+tp_table *abreTabela(char *nomeTabela, struct fs_objects *objeto, tp_table **tabela, usql usql);
 /* ---------------------------------------------------------------------------------------------- 
     Objetivo:   Recebe o nome de uma tabela e engloba as funções leObjeto() e leSchema().
     Parametros: Nome da Tabela, Objeto da Tabela e tabela.
     Retorno:    tp_table
    ---------------------------------------------------------------------------------------------*/
-
-
-int retornaTamanhoValorCampo(char *nomeCampo, table  *tab);
+int tryCreateDatabase(char databaseName[]);
+/* ---------------------------------------------------------------------------------------------- 
+    Objetivo:   Recebe o nome de um banco de dados e tenta cria-lo
+    Parametros: Nome do banco de dados
+    Retorno:    INT
+                SUCCESS,
+                ERROR
+   ---------------------------------------------------------------------------------------------*/
+int databaseExists(char databaseName[]);
+void createDatabase(char databaseName[]);
+/* ---------------------------------------------------------------------------------------------- 
+    Objetivo:   Recebe o nome de um banco de dados e cria-o
+    Parametros: Nome do banco de dados
+    Retorno:    VOID
+---------------------------------------------------------------------------------------------*/

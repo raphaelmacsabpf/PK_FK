@@ -2,24 +2,24 @@
 #include "buffend.h"
 
 // LEITURA DE DICIONARIO E ESQUEMA
-struct fs_objects leObjeto(char *nTabela){
+struct fs_objects leObjeto(char *nTabela, usql usql){
 
     FILE *dicionario;
     char *tupla = (char *)malloc(sizeof(char)*TAMANHO_NOME_TABELA);
     int cod;
-    dicionario = fopen("fs_object_std.dat", "a+b"); // Abre o dicionario de dados.
+    char realFileName[50];
+    sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
+    dicionario = fopen(realFileName, "a+b"); // Abre o dicionario de dados.
 
     struct fs_objects objeto;
 
-    if(!verificaNomeTabela(nTabela)){
+    if(!verificaNomeTabela(nTabela, usql)){
         printf("Erro GRAVE! na função leObjeto(). Nome da tabela inválido.\nAbortando...\n");
-        free(tupla);
         exit(1);
     }
 
     if (dicionario == NULL) {
         printf("Erro GRAVE! na função leObjeto(). Arquivo não encontrado.\nAbortando...\n\n");
-        free(tupla);
         exit(1);
     }
     
@@ -38,7 +38,6 @@ struct fs_objects leObjeto(char *nTabela){
             fread(&cod,sizeof(int),1,dicionario);
             objeto.qtdCampos = cod;
             
-            free(tupla);
             return objeto;
         }
         fseek(dicionario, 28, 1); // Pula a quantidade de caracteres para a proxima verificacao(4B do codigo, 20B do nome do arquivo e 4B da quantidade de campos).
@@ -47,28 +46,22 @@ struct fs_objects leObjeto(char *nTabela){
 
     return objeto;
 }
-
-tp_table *leSchema (struct fs_objects objeto){
+tp_table *leSchema (struct fs_objects objeto, usql usql){
     FILE *schema;
-    int i = 0, cod = 0;
+    int i = 0, cod;
     char *tupla = (char *)malloc(sizeof(char)*TAMANHO_NOME_CAMPO);
-    char *tuplaT = (char *)malloc(sizeof(char)*TAMANHO_NOME_TABELA+1);
+    char *tuplaT = (char *)malloc(sizeof(char)*TAMANHO_NOME_TABELA);  
     tp_table *esquema = (tp_table *)malloc(sizeof(tp_table)*objeto.qtdCampos); // Aloca esquema com a quantidade de campos necessarios.
 
-    if(esquema == NULL){
-        free(tupla);
-        free(tuplaT);
+    if(esquema == NULL)
         return ERRO_DE_ALOCACAO;
-    }
+    char realFileName[50];
+    sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
+    schema = fopen(realFileName, "a+b"); // Abre o arquivo de esquemas de tabelas.
 
-    schema = fopen("fs_schema_std.dat", "a+b"); // Abre o arquivo de esquemas de tabelas.
-
-    if (schema == NULL){
-        free(tupla);
-        free(tuplaT);
-        free(esquema);
+    if (schema == NULL)
         return ERRO_ABRIR_ESQUEMA;
-    }
+
     while((fgetc (schema) != EOF) && (i < objeto.qtdCampos)){ // Varre o arquivo ate encontrar todos os campos com o codigo da tabela.
         fseek(schema, -1, 1);
 
@@ -77,26 +70,24 @@ tp_table *leSchema (struct fs_objects objeto){
                 
                 fread(tupla, sizeof(char), TAMANHO_NOME_CAMPO, schema);
                 strcpy(esquema[i].nome,tupla);                  // Copia dados do campo para o esquema.
-               
-                fread(&esquema[i].tipo, sizeof(char),1,schema);
-                fread(&esquema[i].tam, sizeof(int),1,schema);
-                fread(&esquema[i].chave, sizeof(int),1,schema);
-                
-                fread(tuplaT, sizeof(char), TAMANHO_NOME_TABELA, schema);
+                fread(&esquema[i].tipo, sizeof(char),1,schema);      
+                fread(&esquema[i].tam, sizeof(int),1,schema);   
+                fread(&esquema[i].chave, sizeof(int),1,schema);  
+                fread(tupla, sizeof(char), TAMANHO_NOME_TABELA, schema);
                 strcpy(esquema[i].tabelaApt,tuplaT);
-
                 fread(tupla, sizeof(char), TAMANHO_NOME_CAMPO, schema);
                 strcpy(esquema[i].attApt,tupla);
-
-                i++;
+                
+                i++;            
             } else {
+
                 fseek(schema, 109, 1); // Pula a quantidade de caracteres para a proxima verificacao (40B do nome, 1B do tipo e 4B do tamanho,4B da chave, 20B do nome da Tabela Apontada e 40B do atributo apontado).
             }
         }
+        
     }
     free(tupla);
     free(tuplaT);
-    fclose(schema);
 
     return esquema;
 }
@@ -106,15 +97,13 @@ tp_buffer * initbuffer(){
     
     tp_buffer *bp = (tp_buffer*)malloc(sizeof(tp_buffer)*PAGES);
     int i;
-    tp_buffer *temp = bp;
-
     if(bp == NULL)
         return ERRO_DE_ALOCACAO;
     for (i = 0;i < PAGES; i++){
-        temp->db=0;
-        temp->pc=0;
-        temp->nrec=0;
-        temp++;
+        bp->db=0;
+        bp->pc=0;
+        bp->nrec=0;
+        bp++;
     }
 
     return bp;
@@ -295,15 +284,15 @@ double convertD(char u[])
     return get_inteiro(u)+get_decimal(u);
     //Soma inteiro com decimal.ss
 }
-int verificaNomeTabela(char *nomeTabela)
+int verificaNomeTabela(char *nomeTabela, usql usql)
 {
 
     FILE *dicionario;
     char *tupla = (char *)malloc(sizeof(char)*TAMANHO_NOME_TABELA);
-    if((dicionario = fopen("fs_object_std.dat","a+b")) == NULL){
-        free(tupla);
+    char realFileName[50];
+    sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
+    if((dicionario = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
-    }
 
     while(fgetc (dicionario) != EOF){
         fseek(dicionario, -1, 1);
@@ -311,7 +300,7 @@ int verificaNomeTabela(char *nomeTabela)
         fread(tupla, sizeof(char), TAMANHO_NOME_TABELA, dicionario); //Lê somente o nome da tabela
 
         if(strcmp(tupla, nomeTabela) == 0){ // Verifica se o nome dado pelo usuario existe no dicionario de dados.
-            free(tupla);
+            
             return 1;
         }
         
@@ -323,12 +312,14 @@ int verificaNomeTabela(char *nomeTabela)
 
     return 0;
 }
-int quantidadeTabelas(){
+int quantidadeTabelas(usql usql){
 
     FILE *dicionario;
     int codTbl = 0;
 
-    if((dicionario = fopen("fs_object_std.dat","a+b")) == NULL)
+    char realFileName[50];
+    sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
+    if((dicionario = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
 
     while(fgetc (dicionario) != EOF){
@@ -346,15 +337,16 @@ int quantidadeTabelas(){
 }
 //---------------------------------------
 // INSERE UMA TUPLA NO BUFFER!
-char *getTupla(tp_table *campos,struct fs_objects objeto, int from){ //Pega uma tupla do disco a partir do valor de from
+char *getTupla(tp_table *campos,struct fs_objects objeto, int from, usql usql){ //Pega uma tupla do disco a partir do valor de from
 
     int tamTpl = tamTupla(campos, objeto);
     char *linha=(char *)malloc(sizeof(char)*tamTpl);
     FILE *dados;
 
     from = from * tamTpl;
-
-    dados = fopen(objeto.nArquivo, "r");
+    char realFileName[50];
+    sprintf(realFileName, "%s.%s", usql.currentDatabase,objeto.nArquivo);
+    dados = fopen(realFileName, "r");
 
     if (dados == NULL)
         return ERRO_DE_LEITURA;
@@ -376,9 +368,9 @@ void setTupla(tp_buffer *buffer,char *tupla, int tam, int pos){ //Coloca uma tup
     for (;i<buffer[pos].position + tam;i++)
         buffer[pos].data[i] = *(tupla++);
 }
-int colocaTuplaBuffer(tp_buffer *buffer, int from, tp_table *campos, struct fs_objects objeto){//Define a página que será incluida uma nova tupla
+int colocaTuplaBuffer(tp_buffer *buffer, int from, tp_table *campos, struct fs_objects objeto, usql usql){//Define a página que será incluida uma nova tupla
     
-    char *tupla = getTupla(campos,objeto,from);
+    char *tupla = getTupla(campos,objeto,from, usql);
 
     if(tupla == ERRO_DE_LEITURA)
         return ERRO_LEITURA_DADOS;
@@ -403,8 +395,8 @@ int colocaTuplaBuffer(tp_buffer *buffer, int from, tp_table *campos, struct fs_o
 }
 //----------------------------------------
 // CRIA TABELA
-table *iniciaTabela(char *nome){
-    if(verificaNomeTabela(nome)){   // Se o nome já existir no dicionario, retorna erro.
+table *iniciaTabela(char *nome, usql usql){
+    if(verificaNomeTabela(nome, usql)){   // Se o nome já existir no dicionario, retorna erro.
         return ERRO_NOME_TABELA_INVALIDO;
     }
 
@@ -421,53 +413,29 @@ table *adicionaCampo(table *t,char *nomeCampo, char tipoCampo, int tamanhoCampo,
     tp_table *aux;  
     if(t->esquema == NULL){ // Se o campo for o primeiro a ser adicionado, adiciona campo no esquema.
         
-        
-        tp_table *e = (tp_table *)malloc(sizeof(tp_table));
-        memset(e, 0, sizeof(*e));
-        if (e == NULL)
-        {
-            return ERRO_DE_ALOCACAO;
-        }
+        tp_table *e = (tp_table *)malloc(sizeof(tp_table)*1);
         e->next = NULL;
-        int n = strlen(nomeCampo)+1;
-
-        if (n > TAMANHO_NOME_CAMPO)
-        {
-            n = TAMANHO_NOME_CAMPO;
-        }
-
-        strncpy(e->nome, nomeCampo,n); // Copia nome do campo passado para o esquema
+        strcpy(e->nome, nomeCampo); // Copia nome do campo passado para o esquema
         e->tipo = tipoCampo; // Copia tipo do campo passado para o esquema
         e->tam = tamanhoCampo; // Copia tamanho do campo passado para o esquema
         e->chave = tChave; // Copia tipo de chave passado para o esquema
         
-        if(strlen(tabelaApt) >= 1)
+        //if(strlen(tabelaApt)!=0){
             strcpy(e->tabelaApt, tabelaApt); //Copia a Tabela Refenciada da FK de chave passado para o esquema;
         
-        if(strlen(attApt) >= 1)
+        //if(strlen(attApt)!=0){
             strcpy(e->attApt, attApt); //Copia o Atributo Refenciado da FK de chave passado para o esquema
         
+        
+    
         t->esquema = e; 
-
         return t; // Retorna a estrutura
     } else { 
         for(aux = t->esquema; aux != NULL; aux = aux->next){ // Anda até o final da estrutura de campos.
             if(aux->next == NULL){ // Adiciona um campo no final.   
-                tp_table *e = (tp_table *)malloc(sizeof(tp_table));
-                   memset(e, 0, sizeof(*e));
-                if (e == NULL)
-                {
-                    return ERRO_DE_ALOCACAO;
-                }
+                tp_table *e = (tp_table *)malloc(sizeof(tp_table)*1);
                 e->next = NULL;
-
-                int n = strlen(nomeCampo)+1;
-
-                if (n > TAMANHO_NOME_CAMPO)
-                {
-                    n = TAMANHO_NOME_CAMPO;
-                }
-                strncpy(e->nome, nomeCampo,n); // Copia nome do campo passado para o esquema
+                strcpy(e->nome, nomeCampo); // Copia nome do campo passado para o esquema
                 e->tipo = tipoCampo; // Copia tipo do campo passado para o esquema
                 e->tam = tamanhoCampo; // Copia tamanho do campo passado para o esquema
                 e->chave = tChave; // Copia tipo de chave passado para o esquema
@@ -486,19 +454,21 @@ table *adicionaCampo(table *t,char *nomeCampo, char tipoCampo, int tamanhoCampo,
 
     return t; //Retorna estrutura atualizada.
 }
-int finalizaTabela(table *t){
+int finalizaTabela(table *t, usql usql){
     if(t == NULL)
         return ERRO_DE_PARAMETRO;
 
     FILE *esquema, *dicionario;
     tp_table *aux;
-    int codTbl = quantidadeTabelas() + 1, qtdCampos = 0; // Conta a quantidade de tabelas já no dicionario e soma 1 no codigo dessa nova tabela.
+    int codTbl = quantidadeTabelas(usql) + 1, qtdCampos = 0; // Conta a quantidade de tabelas já no dicionario e soma 1 no codigo dessa nova tabela.
     char nomeArquivo[TAMANHO_NOME_ARQUIVO];
 
-    if((esquema = fopen("fs_schema_std.dat","a+b")) == NULL)
+    char realFileName[50];
+    sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
+    if((esquema = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
 
-    for(aux = t->esquema; aux != NULL; aux = aux->next){ // Salva novos campos no esquema da tabela, fs_schema_std.dat
+    for(aux = t->esquema; aux != NULL; aux = aux->next){ // Salva novos campos no esquema da tabela, fs_schema.dat
 
         fwrite(&codTbl         ,sizeof(codTbl)         ,1,esquema);  //Código Tabela
         fwrite(&aux->nome      ,sizeof(aux->nome)      ,1,esquema);  //Nome campo
@@ -513,7 +483,8 @@ int finalizaTabela(table *t){
 
     fclose(esquema);
 
-    if((dicionario = fopen("fs_object_std.dat","a+b")) == NULL)
+    sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
+    if((dicionario = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
 
     strcpy(nomeArquivo, t->nome);
@@ -528,52 +499,9 @@ int finalizaTabela(table *t){
     fclose(dicionario);
     return SUCCESS;
 }
-
-int retornaTamanhoValorCampo(char *nomeCampo, table  *tab) {
-    
-    int tam = 0;
-
-    tp_table *temp = tab->esquema;
-
-    while(temp != NULL) {
-
-       if (strcmp(nomeCampo,temp->nome) == 0)
-       {
-            tam = temp->tam;
-
-            return tam;
-       }
-
-       temp = temp->next;
-    }
-
-    return tam;
-}
-
-char retornaTamanhoTipoDoCampo(char *nomeCampo, table  *tab) {
-    
-    char tipo = 0;
-
-    tp_table *temp = tab->esquema;
-
-    while(temp != NULL) {
-
-       if (strcmp(nomeCampo,temp->nome) == 0)
-       {
-            tipo = temp->tipo;
-
-            return tipo;
-       }
-
-       temp = temp->next;
-    }
-
-    return tipo;
-}
-
 //-----------------------------------------
 // INSERE NA TABELA
-column *insereValor(table *tab, column *c, char *nomeCampo, char *valorCampo){
+column *insereValor(column *c, char *nomeCampo, char *valorCampo){
     
     column *aux;
     if(c == NULL){ // Se o valor a ser inserido é o primeiro, adiciona primeiro campo.
@@ -601,20 +529,20 @@ column *insereValor(table *tab, column *c, char *nomeCampo, char *valorCampo){
 
     return ERRO_INSERIR_VALOR;
 }
-int finalizaInsert(char *nome, column *c){
+int finalizaInsert(char *nome, column *c, usql usql){
     column *auxC, *temp;
     int i = 0, x = 0, t, erro, j = 0;
     FILE *dados;
 
     struct fs_objects objeto,dicio; // Le dicionario
     tp_table *auxT ; // Le esquema
-    auxT = abreTabela(nome, &dicio, &auxT);
+    auxT = abreTabela(nome, &dicio, &auxT, usql);
 
     table *tab     = (table *)malloc(sizeof(table));
     tp_table *tab2 = (tp_table *)malloc(sizeof(struct tp_table)); 
 
-    tab->esquema = abreTabela(nome, &objeto, &tab->esquema);
-    tab2 = procuraAtributoFK(objeto);
+    tab->esquema = abreTabela(nome, &objeto, &tab->esquema, usql);
+    tab2 = procuraAtributoFK(objeto, usql);
     
     for(j = 0, temp = c; j < objeto.qtdCampos && temp != NULL; j++, temp = temp->next){
         switch(tab2[j].chave){
@@ -623,14 +551,9 @@ int finalizaInsert(char *nome, column *c){
                 break;
 
             case PK:
-                erro = verificaChavePK(nome, temp , temp->nomeCampo, temp->valorCampo);
+                erro = verificaChavePK(nome, temp , temp->nomeCampo, temp->valorCampo, usql);
                 if(erro == ERRO_CHAVE_PRIMARIA){
                     printf("Erro GRAVE! na função verificaChavePK(). Erro de Chave Primaria.\nAbortando...\n");
-                    free(c);    // Libera a memoria da estrutura.
-                    free(auxT); // Libera a memoria da estrutura.
-                    //free(temp); // Libera a memoria da estrutura.   
-                    free(tab); // Libera a memoria da estrutura.
-                    free(tab2); // Libera a memoria da estrutura.
                     exit(1);
                 }
 
@@ -639,15 +562,10 @@ int finalizaInsert(char *nome, column *c){
             case FK:
                 if(tab2[j].chave == 2 && strlen(tab2[j].attApt) != 0 && strlen(tab2[j].tabelaApt) != 0){
 
-                    erro = verificaChaveFK(nome, temp, tab2[j].nome, temp->valorCampo, tab2[j].tabelaApt, tab2[j].attApt);
+                    erro = verificaChaveFK(nome, temp, tab2[j].nome, temp->valorCampo, tab2[j].tabelaApt, tab2[j].attApt, usql);
 
                     if(erro != SUCCESS){
                         printf("Erro GRAVE! na função verificaChaveFK(). Erro de Chave Estrangeira.\nAbortando...\n");
-                        free(c);    // Libera a memoria da estrutura.
-                        free(auxT); // Libera a memoria da estrutura.
-                        free(temp); // Libera a memoria da estrutura.
-                        free(tab); // Libera a memoria da estrutura.
-                        free(tab2); // Libera a memoria da estrutura.
                         exit(1);
                     }
                 }
@@ -659,43 +577,22 @@ int finalizaInsert(char *nome, column *c){
     
     if(erro == ERRO_CHAVE_ESTRANGEIRA){
         printf("Erro GRAVE! na função verificaChaveFK(). Erro de Chave Estrangeira.\nAbortando...\n");
-        free(c);    // Libera a memoria da estrutura.
-        free(auxT); // Libera a memoria da estrutura.
-        free(temp); // Libera a memoria da estrutura.
-        free(tab); // Libera a memoria da estrutura.
-        free(tab2); // Libera a memoria da estrutura.
         exit(1);
     }
 
     if(erro == ERRO_CHAVE_PRIMARIA){
         printf("Erro GRAVE! na função verificaChavePK(). Erro de Chave Primaria.\nAbortando...\n");
-        free(c);    // Libera a memoria da estrutura.
-        free(auxT); // Libera a memoria da estrutura.
-        free(temp); // Libera a memoria da estrutura.
-        free(tab); // Libera a memoria da estrutura.
-        free(tab2); // Libera a memoria da estrutura.
         exit(1);
     }
     if(erro == ERRO_DE_PARAMETRO) {
         printf("Erro GRAVE! na função finalizaInsert(). Erro de Parametro.\nAbortando...\n");
-        free(c);    // Libera a memoria da estrutura.
-        free(auxT); // Libera a memoria da estrutura.
-        free(temp); // Libera a memoria da estrutura.
-        free(tab); // Libera a memoria da estrutura.
-        free(tab2); // Libera a memoria da estrutura.
         exit(1);
     }
     
-    
-    if((dados = fopen(dicio.nArquivo,"a+b")) == NULL){
-        free(c);    // Libera a memoria da estrutura.
-        free(auxT); // Libera a memoria da estrutura.
-        free(temp); // Libera a memoria da estrutura.
-        free(tab); // Libera a memoria da estrutura.
-        free(tab2); // Libera a memoria da estrutura.
+    char realFileName[50];
+    sprintf(realFileName, "%s.%s", usql.currentDatabase,dicio.nArquivo);
+    if((dados = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
-        
-    }
     
     for(auxC = c, t = 0; auxC != NULL; auxC = auxC->next, t++){
         if(t >= dicio.qtdCampos)
@@ -704,21 +601,9 @@ int finalizaInsert(char *nome, column *c){
         if(auxT[t].tipo == 'S'){ // Grava um dado do tipo string.
             
             if(sizeof(auxC->valorCampo) > auxT[t].tam && sizeof(auxC->valorCampo) != 8){
-                free(tab); // Libera a memoria da estrutura.
-                free(tab2); // Libera a memoria da estrutura.
-                free(c);    // Libera a memoria da estrutura.
-                free(auxT); // Libera a memoria da estrutura.
-                free(temp); // Libera a memoria da estrutura.
-                fclose(dados);
                 return ERRO_NO_TAMANHO_STRING;
             }
             if(strcmp(auxC->nomeCampo, auxT[t].nome) != 0){
-                free(tab); // Libera a memoria da estrutura.
-                free(tab2); // Libera a memoria da estrutura.
-                free(c);    // Libera a memoria da estrutura.
-                free(auxT); // Libera a memoria da estrutura.
-                free(temp); // Libera a memoria da estrutura.
-                fclose(dados);
                 return ERRO_NOME_CAMPO;
             }
             char valorCampo[auxT[t].tam];
@@ -730,32 +615,18 @@ int finalizaInsert(char *nome, column *c){
             i = 0;
             while (i < strlen(auxC->valorCampo)){
                 if(auxC->valorCampo[i] < 48 || auxC->valorCampo[i] > 57){ 
-                    free(tab); // Libera a memoria da estrutura.
-                    free(tab2); // Libera a memoria da estrutura.
-                    free(c);    // Libera a memoria da estrutura.
-                    free(auxT); // Libera a memoria da estrutura.
-                    //free(temp); // Libera a memoria da estrutura.
-                    fclose(dados);
                     return ERRO_NO_TIPO_INTEIRO;
                 }
                 i++;
             }
 
-            int valorInteiro = 0;
-            
-            sscanf(auxC->valorCampo,"%d",&valorInteiro);
+            int valorInteiro = convertI(auxC->valorCampo);
             fwrite(&valorInteiro,sizeof(valorInteiro),1,dados);
         }
         else if(auxT[t].tipo == 'D'){ // Grava um dado do tipo double.
             x = 0;
             while (x < strlen(auxC->valorCampo)){
                 if((auxC->valorCampo[x] < 48 || auxC->valorCampo[x] > 57) && (auxC->valorCampo[x] != 46)){ 
-                    free(tab); // Libera a memoria da estrutura.
-                    free(tab2); // Libera a memoria da estrutura.
-                    free(c);    // Libera a memoria da estrutura.
-                    free(auxT); // Libera a memoria da estrutura.
-                    free(temp); // Libera a memoria da estrutura.
-                    fclose(dados);
                     return ERRO_NO_TIPO_DOUBLE;
                 }
                 x++;
@@ -768,12 +639,6 @@ int finalizaInsert(char *nome, column *c){
 
             if(strlen(auxC->valorCampo) > (sizeof(char)))
             {
-                free(tab); // Libera a memoria da estrutura.
-                free(tab2); // Libera a memoria da estrutura.
-                free(c);    // Libera a memoria da estrutura.
-                free(auxT); // Libera a memoria da estrutura.
-                free(temp); // Libera a memoria da estrutura.
-                fclose(dados);
                 return ERRO_NO_TIPO_CHAR;
             }
             char valorChar = auxC->valorCampo[0];
@@ -782,9 +647,8 @@ int finalizaInsert(char *nome, column *c){
 
     }
     
+    
     fclose(dados);
-    free(tab); // Libera a memoria da estrutura.
-    free(tab2); // Libera a memoria da estrutura.
     free(c);    // Libera a memoria da estrutura.
     free(auxT); // Libera a memoria da estrutura.
     free(temp); // Libera a memoria da estrutura.
@@ -832,7 +696,7 @@ column * excluirTuplaBuffer(tp_buffer *buffer, tp_table *campos, struct fs_objec
 // RETORNA PAGINA DO BUFFER
 column * getPage(tp_buffer *buffer, tp_table *campos, struct fs_objects objeto, int page){
     
-    if(page >= PAGES)
+    if(page > PAGES)
         return ERRO_PAGINA_INVALIDA;
 
     if(buffer[page].nrec == 0) //Essa página não possui registros
@@ -871,12 +735,12 @@ column * getPage(tp_buffer *buffer, tp_table *campos, struct fs_objects objeto, 
     Retorno:    void.
    ---------------------------------------------------------------------------------------------*/
     
-void imprime(char nomeTabela[]) {
+void imprime(char nomeTabela[], usql usql) {
 
-    int j,erro, x, p;
-    struct fs_objects objeto = leObjeto(nomeTabela);    
+    int j,erro, x;
+    struct fs_objects objeto = leObjeto(nomeTabela, usql);    
     
-    tp_table *esquema = leSchema(objeto);
+    tp_table *esquema = leSchema(objeto, usql);
 
     if(esquema == ERRO_ABRIR_ESQUEMA){
         printf("Erro GRAVE ao Criar o ESQUEMA.\nAbortando...\n");
@@ -892,7 +756,7 @@ void imprime(char nomeTabela[]) {
 
     erro = SUCCESS;
     for(x = 0; erro == SUCCESS; x++)
-        erro = colocaTuplaBuffer(bufferpoll, x, esquema, objeto);        
+        erro = colocaTuplaBuffer(bufferpoll, x, esquema, objeto, usql);        
     
 
     column *pagina = getPage(bufferpoll, esquema, objeto, 0);
@@ -903,33 +767,25 @@ void imprime(char nomeTabela[]) {
     }
     
     // PARA IMPRIMIR PÁGINA
-    printf("Número de tuplas: %d\n", --x);
-    p = 0;
-    while(x){
-        column *pagina = getPage(bufferpoll, esquema, objeto, p);   
-        if(pagina == ERRO_PARAMETRO){
-            printf("Erro GRAVE ao abrir a TABELA.\nAbortando...\n");
-            exit(1);
+    printf("Número de tuplas: %d\n", bufferpoll[0].nrec);
+    for(j=0; j < objeto.qtdCampos*bufferpoll[0].nrec; j++){
+        
+        if(pagina[j].tipoCampo == 'S')
+            printf("%s: %-15s ", pagina[j].nomeCampo,pagina[j].valorCampo);
+        else if(pagina[j].tipoCampo == 'I'){
+            int *n = (int *)&pagina[j].valorCampo[0];
+            printf("%s: %-15d ",pagina[j].nomeCampo, *n);
         }
-        for(j=0; j < objeto.qtdCampos*bufferpoll[p].nrec; j++){
-            if(pagina[j].tipoCampo == 'S')
-                printf("%s: %-15s ", pagina[j].nomeCampo,pagina[j].valorCampo);
-            else if(pagina[j].tipoCampo == 'I'){
-                int *n = (int *)&pagina[j].valorCampo[0];
-                printf("%s: %-15d ",pagina[j].nomeCampo, *n);
-            }
-            else if(pagina[j].tipoCampo == 'C'){
-                printf("%s: %-15c ",pagina[j].nomeCampo, pagina[j].valorCampo[0]);
-            }
-            else if(pagina[j].tipoCampo == 'D'){
-                double *n = (double *)&pagina[j].valorCampo[0];
-                 printf("%s: %-15f ",pagina[j].nomeCampo, *n);
-            }
-            if(j>=1 && ((j+1)%objeto.qtdCampos)==0){
-                printf("\n");
-            }
-        } 
-        x-=bufferpoll[p++].nrec;
+        else if(pagina[j].tipoCampo == 'C'){
+            printf("%s: %-15c ",pagina[j].nomeCampo, pagina[j].valorCampo[0]);
+        }
+        else if(pagina[j].tipoCampo == 'D'){
+            double *n = (double *)&pagina[j].valorCampo[0];
+            printf("%s: %-15f ",pagina[j].nomeCampo, *n);
+        }
+        if(j>=1 && ((j+1)%objeto.qtdCampos)==0){
+            printf("\n");
+        }
     }
     printf("\n\n");
 }
@@ -980,18 +836,17 @@ int TrocaArquivosObj(char *nomeTabela, char *linha){
     Retorno:    Vetor de esquemas vetEsqm
    ---------------------------------------------------------------------------------------------*/
 
-tp_table *procuraAtributoFK(struct fs_objects objeto){
+tp_table *procuraAtributoFK(struct fs_objects objeto, usql usql){
     FILE *schema;
     int cod = 0, chave, i = 0;
     char *tupla = (char *)malloc(sizeof(char) * 109);
     tp_table *esquema = (tp_table *)malloc(sizeof(tp_table)*objeto.qtdCampos);
     tp_table *vetEsqm = (tp_table *)malloc(sizeof(tp_table)*objeto.qtdCampos);
 
-    if((schema = fopen("fs_schema_std.dat", "a+b")) == NULL){
+    char realFileName[50];
+    sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
+    if((schema = fopen(realFileName, "a+b")) == NULL){
         printf("Erro GRAVE ao abrir o ESQUEMA.\nAbortando...\n");
-        free(tupla);
-        free(esquema);
-        free(vetEsqm);
         exit(1);
     }
     
@@ -1024,8 +879,6 @@ tp_table *procuraAtributoFK(struct fs_objects objeto){
             }
         }
     }
-    free(tupla);
-    free(esquema);
 
     return vetEsqm;
 }
@@ -1038,7 +891,7 @@ tp_table *procuraAtributoFK(struct fs_objects objeto){
                 ERRO_ABRIR_ARQUIVO
    ---------------------------------------------------------------------------------------------*/
 
-int procuraObjectArquivo(char *nomeTabela){
+int procuraObjectArquivo(char *nomeTabela, usql usql){
     int teste        = 0, 
         cont         = 0, 
         achou        = 0,
@@ -1047,7 +900,9 @@ int procuraObjectArquivo(char *nomeTabela){
     char *table = (char *)malloc(sizeof(char) * tamanhoTotal);
     FILE *dicionario, *fp;
 
-    if((dicionario = fopen("fs_object_std.dat","a+b")) == NULL)
+    char realFileName[50];
+    sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
+    if((dicionario = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
 
     if((fp = fopen("fs_nobject.dat", "a+b")) == NULL)
@@ -1056,7 +911,7 @@ int procuraObjectArquivo(char *nomeTabela){
     fseek(dicionario, 0, SEEK_SET);
     fseek(fp, 0, SEEK_SET);
 
-    while(cont < quantidadeTabelas()){
+    while(cont < quantidadeTabelas(usql)){
         fread(table, sizeof(char), tamanhoTotal, dicionario);
         teste = TrocaArquivosObj(nomeTabela, table);
         
@@ -1074,8 +929,10 @@ int procuraObjectArquivo(char *nomeTabela){
 
     fclose(fp);
     fclose(dicionario);
-    remove("fs_object_std.dat");
-    system("mv fs_nobject.dat fs_object_std.dat");
+    sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
+    remove(realFileName);
+    sprintf(realFileName, "mv fs_nobject.dat fs_object_%s.dat", usql.currentDatabase);
+    system(realFileName);
         
     return SUCCESS;
 }
@@ -1088,14 +945,16 @@ int procuraObjectArquivo(char *nomeTabela){
                 ERRO_REMOVER_ARQUIVO_SCHEMA
    ---------------------------------------------------------------------------------------------*/
 
-int procuraSchemaArquivo(struct fs_objects objeto){
+int procuraSchemaArquivo(struct fs_objects objeto, usql usql){
 
     FILE *schema, *newSchema;
     int cod = 0;
     char *tupla = (char *)malloc(sizeof(char) * 109);
     tp_table *esquema = (tp_table *)malloc(sizeof(tp_table)*objeto.qtdCampos);
 
-    if((schema = fopen("fs_schema_std.dat", "a+b")) == NULL)
+    char realFileName[50];
+    sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
+    if((schema = fopen(realFileName, "a+b")) == NULL)
         return ERRO_REMOVER_ARQUIVO_SCHEMA;
     
     if((newSchema = fopen("fs_nschema.dat", "a+b")) == NULL)
@@ -1139,9 +998,10 @@ int procuraSchemaArquivo(struct fs_objects objeto){
     
     fclose(newSchema);
     fclose(schema);
-    
-    remove("fs_schema_std.dat");
-    system("mv fs_nschema.dat fs_schema_std.dat");
+    sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
+    remove(realFileName);
+    sprintf(realFileName, "mv fs_nschema.dat fs_schema_%s.dat", usql.currentDatabase);
+    system(realFileName);
    
     return SUCCESS;
 }
@@ -1156,72 +1016,17 @@ int procuraSchemaArquivo(struct fs_objects objeto){
                 ERRO_LEITURA_DADOS.
    ---------------------------------------------------------------------------------------------*/
 
-int excluirTabela(char *nomeTabela) {
-    struct fs_objects objeto, objeto1;
-    tp_table *esquema, *esquema1;
-    int x,erro, i, j, k, l, qtTable;
+int excluirTabela(char *nomeTabela, usql usql){
+    struct fs_objects objeto;
+    tp_table *esquema;
+    int x,erro;
     char str[20]; 
     char dat[5] = ".dat";
-
 
     strcpy (str, nomeTabela); 
     strcat (str, dat);              //Concatena e junta o nome com .dat
 
-    abreTabela(nomeTabela, &objeto, &esquema);
-    qtTable = quantidadeTabelas();
-
-    char **tupla = malloc(sizeof(char)*qtTable);
-    for(i=0; i<qtTable; i++) {
-        tupla[i] = (char *)malloc(sizeof(char)*TAMANHO_NOME_TABELA);
-    }
-
-    tp_table *tab2 = (tp_table *)malloc(sizeof(struct tp_table));
-    tab2 = procuraAtributoFK(objeto);   //retorna o tipo de chave que e cada campo
-
-    FILE *dicionario;
-
-    if((dicionario = fopen("fs_object_std.dat","a+b")) == NULL)
-        return ERRO_ABRIR_ARQUIVO;
-
-    k=0;
-    while(fgetc (dicionario) != EOF){
-        fseek(dicionario, -1, 1);
-
-        //coloca o nome de todas as tabelas em tupla
-        fread(tupla[k], sizeof(char), TAMANHO_NOME_TABELA , dicionario);
-        k++;
-
-        fseek(dicionario, 28, 1);
-    }
-
-    fclose(dicionario);
-    
-    for(i = 0; i < objeto.qtdCampos; i++){
-        if(tab2[i].chave == PK){
-            for(j=0; j<qtTable; j++) {                      //se tiver chave primaria verifica se ela e chave
-                if(strcmp(tupla[j], nomeTabela) != 0) {     //estrangeira em outra tabela
-
-                    abreTabela(tupla[j], &objeto1, &esquema1);
-
-                    tp_table *tab3 = (tp_table *)malloc(sizeof(struct tp_table));
-                    tab3 = procuraAtributoFK(objeto1);
-
-                    for(l=0; l<objeto1.qtdCampos; l++) {
-                        if(tab3[l].chave == FK) {                               //verifica se a outra tabela possui
-                            if(strcmp(nomeTabela, tab3[l].tabelaApt) == 0) {    //chave estrangeira
-                                printf("Exclusao nao permitida!\n");            //se sim, verifica se e da tabela
-                                return ERRO_CHAVE_ESTRANGEIRA;                  //anterior
-                            }
-                        }
-                    }
-                    free(tab3);
-                }
-            }
-        }
-    }
-
-    free(tab2);
-
+    abreTabela(nomeTabela, &objeto, &esquema, usql);
     tp_buffer *bufferpoll = initbuffer();
 
     if(bufferpoll == ERRO_DE_ALOCACAO){
@@ -1231,12 +1036,12 @@ int excluirTabela(char *nomeTabela) {
 
     erro = SUCCESS;
     for(x = 0; erro == SUCCESS; x++)
-        erro = colocaTuplaBuffer(bufferpoll, x, esquema, objeto);        
+        erro = colocaTuplaBuffer(bufferpoll, x, esquema, objeto, usql);        
     
-    if(procuraSchemaArquivo(objeto) != 0)
+    if(procuraSchemaArquivo(objeto, usql) != 0)
         return ERRO_REMOVER_ARQUIVO_SCHEMA;
 
-    if(procuraObjectArquivo(nomeTabela) != 0)
+    if(procuraObjectArquivo(nomeTabela, usql) != 0)
        return ERRO_REMOVER_ARQUIVO_OBJECT;
         
     remove(str);
@@ -1252,11 +1057,11 @@ int excluirTabela(char *nomeTabela) {
                 ERRO_DE_PARAMETRO,
    ---------------------------------------------------------------------------------------------*/
 
-int iniciaAtributos(struct fs_objects *objeto, tp_table **tabela, tp_buffer **bufferpoll, char *nomeT){
+int iniciaAtributos(struct fs_objects *objeto, tp_table **tabela, tp_buffer **bufferpoll, char *nomeT, usql usql){
     
     
-    *objeto     = leObjeto(nomeT);
-    *tabela     = leSchema(*objeto);
+    *objeto     = leObjeto(nomeT, usql);
+    *tabela     = leSchema(*objeto, usql);
     *bufferpoll = initbuffer();
 
     if(*tabela == ERRO_ABRIR_ESQUEMA)
@@ -1276,19 +1081,19 @@ int iniciaAtributos(struct fs_objects *objeto, tp_table **tabela, tp_buffer **bu
                 ERRO_DE_PARAMETRO
    ---------------------------------------------------------------------------------------------*/
 
-int existeAtributo(char *nomeTabela, column *c){
+int existeAtributo(char *nomeTabela, column *c, usql usql){
     int erro, x;
     struct fs_objects objeto; 
     tp_table *tabela;         
     tp_buffer *bufferpoll;
     column *aux;
 
-    if(iniciaAtributos(&objeto, &tabela, &bufferpoll, nomeTabela) != SUCCESS) 
+    if(iniciaAtributos(&objeto, &tabela, &bufferpoll, nomeTabela, usql) != SUCCESS) 
         return ERRO_DE_PARAMETRO;
 
     erro = SUCCESS;
     for(x = 0; erro == SUCCESS; x++)
-        erro = colocaTuplaBuffer(bufferpoll, x, tabela, objeto);        
+        erro = colocaTuplaBuffer(bufferpoll, x, tabela, objeto, usql);        
 
     column *pagina = getPage(bufferpoll, tabela, objeto, 0);
     
@@ -1321,7 +1126,7 @@ int existeAtributo(char *nomeTabela, column *c){
                 ERRO_CHAVE_ESTRANGEIRA
    ---------------------------------------------------------------------------------------------*/
 
-int verificaChaveFK(char *nomeTabela,column *c, char *nomeCampo, char *valorCampo, char *tabelaApt, char *attApt){
+int verificaChaveFK(char *nomeTabela,column *c, char *nomeCampo, char *valorCampo, char *tabelaApt, char *attApt, usql usql){
     int x,j, erro;
     char str[20]; 
     char dat[5] = ".dat";
@@ -1332,20 +1137,20 @@ int verificaChaveFK(char *nomeTabela,column *c, char *nomeCampo, char *valorCamp
     strcpy (str, tabelaApt); 
     strcat (str, dat);              //Concatena e junta o nome com .dat
     
-    erro = existeAtributo(nomeTabela, c);
+    erro = existeAtributo(nomeTabela, c, usql);
     /*if(erro != SUCCESS )
         return ERRO_DE_PARAMETRO;*/
         
     //if(existeAtributo(tabelaApt, c))
         //return ERRO_CHAVE_ESTRANGEIRA;
 
-    if(iniciaAtributos(&objeto, &tabela, &bufferpoll, tabelaApt) != SUCCESS)
+    if(iniciaAtributos(&objeto, &tabela, &bufferpoll, tabelaApt, usql) != SUCCESS)
         return ERRO_DE_PARAMETRO;
        
 
     erro = SUCCESS;
     for(x = 0; erro == SUCCESS; x++)
-        erro = colocaTuplaBuffer(bufferpoll, x, tabela, objeto);        
+        erro = colocaTuplaBuffer(bufferpoll, x, tabela, objeto, usql);        
 
     column *pagina = getPage(bufferpoll, tabela, objeto, 0);
 
@@ -1355,7 +1160,7 @@ int verificaChaveFK(char *nomeTabela,column *c, char *nomeCampo, char *valorCamp
         
        // printf("VALORC: %s\n VC: %s\n", pagina[j].valorCampo, valorCampo); 
 
-        if(strcmp(pagina[j].nomeCampo, attApt) == 0){
+        if(strcmp(pagina[j].nomeCampo, nomeCampo) == 0){
             
             if(pagina[j].tipoCampo == 'S'){     
                 if(strcmp(pagina[j].valorCampo, valorCampo) == 0){
@@ -1400,24 +1205,24 @@ int verificaChaveFK(char *nomeTabela,column *c, char *nomeCampo, char *valorCamp
                 ERRO_CHAVE_PRIMARIA
    ---------------------------------------------------------------------------------------------*/
 
-int verificaChavePK(char *nomeTabela, column *c, char *nomeCampo, char *valorCampo){
+int verificaChavePK(char *nomeTabela, column *c, char *nomeCampo, char *valorCampo, usql usql){
     int j, x, erro;
     
     struct fs_objects objeto;
     tp_table *tabela;
     tp_buffer *bufferpoll;
     
-    erro = existeAtributo(nomeTabela, c);
+    erro = existeAtributo(nomeTabela, c, usql);
     if(erro != SUCCESS )
         return ERRO_DE_PARAMETRO;
     
 
-    if(iniciaAtributos(&objeto, &tabela, &bufferpoll, nomeTabela) != SUCCESS) 
+    if(iniciaAtributos(&objeto, &tabela, &bufferpoll, nomeTabela, usql) != SUCCESS) 
         return ERRO_DE_PARAMETRO;
 
     erro = SUCCESS;
     for(x = 0; erro == SUCCESS; x++)
-        erro = colocaTuplaBuffer(bufferpoll, x, tabela, objeto);        
+        erro = colocaTuplaBuffer(bufferpoll, x, tabela, objeto, usql);        
 
     column *pagina = getPage(bufferpoll, tabela, objeto, 0);
 
@@ -1464,9 +1269,69 @@ int verificaChavePK(char *nomeTabela, column *c, char *nomeCampo, char *valorCam
     Retorno:    tp_table
    ---------------------------------------------------------------------------------------------*/
 
-tp_table *abreTabela(char *nomeTabela, struct fs_objects *objeto, tp_table **tabela){
-    *objeto     = leObjeto(nomeTabela);
-    *tabela     = leSchema(*objeto);
+tp_table *abreTabela(char *nomeTabela, struct fs_objects *objeto, tp_table **tabela, usql usql){
+    *objeto     = leObjeto(nomeTabela, usql);
+    *tabela     = leSchema(*objeto, usql);
 
     return *tabela;
+}
+int tryCreateDatabase(char databaseName[]) {
+    if(strlen(databaseName) > 0) {
+        int result = databaseExists(databaseName);
+        if(result == SUCCESS) {
+            createDatabase(databaseName);
+        }
+        else
+            return result;
+    }
+    else
+        return ERROR_DATABASE_NAME;
+    return SUCCESS;
+}
+int databaseExists(char databaseName[]) {
+    FILE *file = fopen("fs_database.dat", "rb");
+    if(file != NULL) {
+        char buffer[50];
+        buffer[0] = '\0';
+        int cFlag = 0;
+        while(fgetc (file) != EOF){
+            fseek(file, -1, 1);
+            char c;
+            fread(&c, sizeof(char), 1, file);
+            if(cFlag == 0) {
+                if(c == '0') {
+                    char cc = fgetc(file);
+                    while(cc != EOF && cc != '\n') {
+                        cc = fgetc(file);
+                    }
+                    cc = fgetc(file);
+                }
+                cFlag = 1;
+            }
+            else {
+                if(c == '\n') {
+                    if(strcmp(buffer,databaseName) == 0) {
+                        return ERROR_DATABASE_EXISTS;
+                    }
+                    buffer[0] = '\0';
+                    cFlag = 0;
+                }
+                else {
+                    sprintf(buffer,"%s%c",buffer,c);
+                }
+            }
+        }
+    }
+    else {
+        return ERROR_DATABASE_FILE_NOT_FOUND;
+    }
+    return SUCCESS;
+}
+
+void createDatabase(char databaseName[]) {
+    FILE *file = fopen("fs_database.dat", "a+b");
+    char str[51];
+    sprintf(str, "1%s\n",databaseName);
+    fwrite(str, sizeof(char), strlen(str), file);
+    fclose(file);
 }
