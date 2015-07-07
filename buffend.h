@@ -10,8 +10,8 @@
 #define TAMANHO_NOME_ARQUIVO 70 // Tamanho do nome do arquivo.
 #define TAMANHO_NOME_BD 50 	// Tamanho do nome do banco de dados
 
-typedef struct usql {
-    char currentDatabase[TAMANHO_NOME_BD];
+typedef struct usql { // Struct for DB
+    char currentDatabase[TAMANHO_NOME_BD]; // DB Name
 }usql;
 
 struct fs_objects { // Estrutura usada para carregar fs_objects.dat
