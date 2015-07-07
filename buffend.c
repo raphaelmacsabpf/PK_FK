@@ -7,7 +7,7 @@ struct fs_objects leObjeto(char *nTabela, usql usql){
     FILE *dicionario;
     char *tupla = (char *)malloc(sizeof(char)*TAMANHO_NOME_TABELA);
     int cod;
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
     dicionario = fopen(realFileName, "a+b"); // Abre o dicionario de dados.
 
@@ -55,7 +55,7 @@ tp_table *leSchema (struct fs_objects objeto, usql usql){
 
     if(esquema == NULL)
         return ERRO_DE_ALOCACAO;
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
     schema = fopen(realFileName, "a+b"); // Abre o arquivo de esquemas de tabelas.
 
@@ -289,7 +289,7 @@ int verificaNomeTabela(char *nomeTabela, usql usql)
 
     FILE *dicionario;
     char *tupla = (char *)malloc(sizeof(char)*TAMANHO_NOME_TABELA);
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
     if((dicionario = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
@@ -317,7 +317,7 @@ int quantidadeTabelas(usql usql){
     FILE *dicionario;
     int codTbl = 0;
 
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
     if((dicionario = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
@@ -344,7 +344,7 @@ char *getTupla(tp_table *campos,struct fs_objects objeto, int from, usql usql){ 
     FILE *dados;
 
     from = from * tamTpl;
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "%s.%s", usql.currentDatabase,objeto.nArquivo);
     dados = fopen(realFileName, "r");
 
@@ -463,7 +463,7 @@ int finalizaTabela(table *t, usql usql){
     int codTbl = quantidadeTabelas(usql) + 1, qtdCampos = 0; // Conta a quantidade de tabelas já no dicionario e soma 1 no codigo dessa nova tabela.
     char nomeArquivo[TAMANHO_NOME_ARQUIVO];
 
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
     if((esquema = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
@@ -589,7 +589,7 @@ int finalizaInsert(char *nome, column *c, usql usql){
         exit(1);
     }
     
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "%s.%s", usql.currentDatabase,dicio.nArquivo);
     if((dados = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
@@ -843,7 +843,7 @@ tp_table *procuraAtributoFK(struct fs_objects objeto, usql usql){
     tp_table *esquema = (tp_table *)malloc(sizeof(tp_table)*objeto.qtdCampos);
     tp_table *vetEsqm = (tp_table *)malloc(sizeof(tp_table)*objeto.qtdCampos);
 
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
     if((schema = fopen(realFileName, "a+b")) == NULL){
         printf("Erro GRAVE ao abrir o ESQUEMA.\nAbortando...\n");
@@ -900,7 +900,7 @@ int procuraObjectArquivo(char *nomeTabela, usql usql){
     char *table = (char *)malloc(sizeof(char) * tamanhoTotal);
     FILE *dicionario, *fp;
 
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_object_%s.dat", usql.currentDatabase);
     if((dicionario = fopen(realFileName,"a+b")) == NULL)
         return ERRO_ABRIR_ARQUIVO;
@@ -952,7 +952,7 @@ int procuraSchemaArquivo(struct fs_objects objeto, usql usql){
     char *tupla = (char *)malloc(sizeof(char) * 109);
     tp_table *esquema = (tp_table *)malloc(sizeof(tp_table)*objeto.qtdCampos);
 
-    char realFileName[50];
+    char realFileName[TAMANHO_NOME_ARQUIVO];
     sprintf(realFileName, "fs_schema_%s.dat", usql.currentDatabase);
     if((schema = fopen(realFileName, "a+b")) == NULL)
         return ERRO_REMOVER_ARQUIVO_SCHEMA;

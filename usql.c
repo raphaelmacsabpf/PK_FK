@@ -170,7 +170,7 @@ int main() {
                                 int fieldLength;
                                 int fieldOffset = 0;
                                 int key = 0;
-                                char fk1[50], fk2[50];
+                                char fk1[TAMANHO_NOME_TABELA], fk2[TAMANHO_NOME_CAMPO];
                                 sprintf(fieldName, "%s", newTokens[fieldStart]);
                                 sprintf(fieldType, "%s", newTokens[fieldStart+1]);
                                 if(strcasecmp(fieldType,"I") == 0) {//INTEGER

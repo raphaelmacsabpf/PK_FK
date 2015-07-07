@@ -7,10 +7,11 @@
 #define PAGES 1024 				// Número de páginas.
 #define TAMANHO_NOME_CAMPO 40 	// Tamanho do nome dos campos de uma tabela.
 #define TAMANHO_NOME_TABELA 20 	// Tamanho do nome da tabela.
-#define TAMANHO_NOME_ARQUIVO 20 // Tamanho do nome do arquivo.
+#define TAMANHO_NOME_ARQUIVO 70 // Tamanho do nome do arquivo.
+#define TAMANHO_NOME_BD 50 	// Tamanho do nome do banco de dados
 
 typedef struct usql {
-    char currentDatabase[50];
+    char currentDatabase[TAMANHO_NOME_BD];
 }usql;
 
 struct fs_objects { // Estrutura usada para carregar fs_objects.dat
