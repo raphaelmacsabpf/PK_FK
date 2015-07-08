@@ -14,12 +14,12 @@ int commandParser(char newTokens[][MAX_TOKEN_LENGTH]) {
 
    
     int i, j, pos2 = 0, founded;
-    if (fgets(inputCommand, sizeof(inputCommand), stdin)) {
+    if (fgets(inputCommand, sizeof(inputCommand), stdin)) { 
         char tokenDelimiter[sizeof(DELIMITER)];
         sprintf(tokenDelimiter, "%s",DELIMITER);
-        for(i = 0; i < strlen(inputCommand)+1; i++) {
+        for(i = 0; i < strlen(inputCommand)+1; i++) { //compare each char to find out each token
             int delimiterFounded = 0;
-            for(j = 0; j < strlen(tokenDelimiter); j++) {
+            for(j = 0; j < strlen(tokenDelimiter); j++) { //compare it with each DELIMITER
                 if(inputCommand[i] == tokenDelimiter[j] || inputCommand[i] == '\0') {
                     delimiterFounded = 1;
                 }
@@ -39,8 +39,9 @@ int commandParser(char newTokens[][MAX_TOKEN_LENGTH]) {
         }
     }
     tokenBuffer[0] = '\0';
+
     for(i = 0; i < pos; i++, founded = 0) {
-        if(allTokens[i][0] == '\'') {
+        if(allTokens[i][0] == '\'') { //check if it is a string
             inQuotes = 1;
         }
         while(inQuotes == 1) {
